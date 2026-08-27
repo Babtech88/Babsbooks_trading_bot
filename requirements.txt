@@ -1,0 +1,26 @@
+# requirements.txt
+# -----------------------------------------------------------------------------
+# Install with:
+#   pip install -r requirements.txt
+#
+# MetaTrader5 is Windows-only (it wraps the native MT5 terminal API).
+# On a Windows VPS this installs and works normally.
+# -----------------------------------------------------------------------------
+
+# --- Master Risk Manager (master_risk_manager.py) ---------------------------
+fastapi==0.115.0
+uvicorn==0.32.0
+pydantic==2.9.2
+
+# --- risk_client.py (used by every bot) --------------------------------------
+requests==2.32.3
+
+# --- All bots: market data + broker connection -------------------------------
+MetaTrader5==5.0.4993
+pandas==2.2.3
+numpy==2.1.3
+
+# --- Optional: used by V36 variants for statistical validation --------------
+# (Monte Carlo / walk-forward code has a try/except fallback if this is
+# missing, but install it for the full historical-stats features to work)
+scipy==1.14.1

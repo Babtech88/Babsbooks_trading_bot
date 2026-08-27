@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>BABSBOOKS HEDGE FUND TERMINAL</title>
+
+<link rel="stylesheet" href="/static/style.css">
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+<!-- BACKGROUND EFFECTS -->
+<div id="gradientLayer"></div>
+
+<div id="particleLayer"></div>
+
+<div id="symbolLayer"></div>
+
+<div id="banknoteBg"></div>
+
+<div id="mouseGlow"></div>
+
+<!-- DASHBOARD -->
+
+<div class="dashboard">
+
+    <div class="header holo-card">
+
+        <h1>BABSBOOKS INSTITUTIONAL TERMINAL</h1>
+
+        <div class="status">
+            ● LIVE HEDGE FUND ENGINE
+        </div>
+
+    </div>
+
+    <div class="stats-grid">
+
+        <div class="card holo-card">
+            <span>BALANCE</span>
+            <h2 id="balance">$0.00</h2>
+        </div>
+
+        <div class="card holo-card">
+            <span>EQUITY</span>
+            <h2 id="equity">$0.00</h2>
+        </div>
+
+        <div class="card holo-card">
+            <span>AI CONFIDENCE</span>
+            <h2 id="confidence">0%</h2>
+        </div>
+
+        <div class="card holo-card">
+            <span>POSITIONS</span>
+            <h2 id="positionsCount">0</h2>
+        </div>
+
+    </div>
+
+    <div class="main-grid">
+
+        <div class="panel holo-card">
+
+            <h3>MT5 EXECUTION</h3>
+
+            <select id="symbol">
+                <option>EURUSD</option>
+                <option>GBPUSD</option>
+                <option>USDJPY</option>
+                <option>AUDUSD</option>
+            </select>
+
+            <input
+                type="number"
+                id="volume"
+                value="0.01"
+                step="0.01"
+            >
+
+            <div class="buttons">
+
+                <button
+                    class="buy-btn"
+                    onclick="sendOrder('buy')"
+                >
+                    BUY
+                </button>
+
+                <button
+                    class="sell-btn"
+                    onclick="sendOrder('sell')"
+                >
+                    SELL
+                </button>
+
+            </div>
+
+        </div>
+
+        <div class="panel holo-card">
+
+            <h3>AI RADAR</h3>
+
+            <canvas id="radarChart"></canvas>
+
+        </div>
+
+    </div>
+
+    <div class="panel holo-card">
+
+        <h3>ACTIVE POSITIONS</h3>
+
+        <table>
+
+            <thead>
+
+                <tr>
+                    <th>Symbol</th>
+                    <th>Type</th>
+                    <th>Volume</th>
+                    <th>Profit</th>
+                </tr>
+
+            </thead>
+
+            <tbody id="positionsTable"></tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<script src="/static/app.js"></script>
+
+</body>
+</html>

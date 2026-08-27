@@ -1,0 +1,19 @@
+{
+    "version": "35.2",
+    "last_updated": "2026-05-15",
+    "settings": {
+        "max_daily_trades": 8,
+        "max_risk_per_trade": 1.0,
+        "max_daily_risk": 2.0,
+        "default_volume": 0.01,
+        "auto_save": true,
+        "replay_speed": 1.0
+    },
+    "symbols": ["EURUSD", "GBPUSD", "AUDUSD", "EURJPY", "GBPJPY", "EURGBP"],
+    "timeframes": ["M1", "M5", "M15", "M30", "H1", "H4", "D1"],
+    "risk_limits": {
+        "max_consecutive_losses": 3,
+        "max_daily_drawdown": 2.0,
+        "max_equity_drawdown": 8.0
+    }
+}

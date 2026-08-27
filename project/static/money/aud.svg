@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100" width="200" height="100">
+                <rect width="200" height="100" rx="5" fill="#f0a0a0" stroke="#ffd700" stroke-width="2"/>
+                <text x="100" y="55" font-family="Arial" font-size="24" font-weight="bold" fill="#fff" text-anchor="middle">AUD</text>
+                <text x="100" y="75" font-family="Arial" font-size="12" fill="#fff" text-anchor="middle">BANKNOTE</text>
+            </svg>

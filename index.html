@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BabsBooks Fleet — Live Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0B1120;
+    --panel:     #131B2E;
+    --panel-2:   #1A2438;
+    --line:      #232E47;
+    --text:      #E7ECF5;
+    --text-dim:  #8E9BB8;
+    --gold:      #D4A657;
+    --gold-dim:  #8A6F3E;
+    --amber:     #E8A33D;
+    --green:     #34D399;
+    --red:       #E5484D;
+    --radius:    10px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    background: radial-gradient(ellipse at top, #101a30 0%, var(--bg) 55%);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    padding: 28px 20px 80px;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  /* ---------- Header ---------- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 22px; margin-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand {
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .brand-mark {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 20px; letter-spacing: 0.02em;
+  }
+  .brand-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--text-dim); letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .live-pill {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--line);
+    color: var(--text-dim);
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text-dim);
+  }
+  .dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+  .dot.off { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ---------- Halt banner ---------- */
+  .halt-banner {
+    display: none;
+    background: linear-gradient(90deg, rgba(229,72,77,0.16), rgba(229,72,77,0.04));
+    border: 1px solid rgba(229,72,77,0.4);
+    border-radius: var(--radius);
+    padding: 16px 20px; margin-bottom: 24px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    color: #FFD3D4;
+  }
+  .halt-banner.show { display: block; }
+  .halt-banner b { color: var(--red); font-family: 'Space Grotesk', sans-serif; }
+
+  .conn-banner {
+    display: none;
+    background: rgba(232,163,61,0.10);
+    border: 1px solid rgba(232,163,61,0.35);
+    border-radius: var(--radius);
+    padding: 14px 20px; margin-bottom: 24px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    color: var(--amber);
+  }
+  .conn-banner.show { display: block; }
+
+  /* ---------- Vitals ---------- */
+  .vitals {
+    display: grid;
+    grid-template-columns: 220px 1fr 1fr;
+    gap: 20px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 20px;
+  }
+
+  .gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .gauge-label {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim);
+  }
+
+  .vital-block { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+  .vital-eyebrow {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim);
+  }
+  .vital-value {
+    font-family: 'IBM Plex Mono', monospace; font-weight: 500;
+    font-size: 30px; letter-spacing: -0.01em;
+  }
+  .vital-value.small { font-size: 20px; }
+  .vital-sub {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim);
+  }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+
+  /* ---------- Section headers ---------- */
+  .section-title {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim);
+    margin: 30px 0 12px;
+  }
+
+  /* ---------- Currency exposure ---------- */
+  .exposure-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .exposure-chip {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 10px 14px; min-width: 130px;
+  }
+  .exposure-chip .cur {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px;
+  }
+  .exposure-bar {
+    height: 5px; border-radius: 3px; background: var(--panel-2);
+    margin-top: 8px; overflow: hidden;
+  }
+  .exposure-fill { height: 100%; background: var(--gold); border-radius: 3px; transition: width 0.4s; }
+  .exposure-pct { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  .exposure-empty { color: var(--text-dim); font-family: 'IBM Plex Mono', monospace; font-size: 13px; padding: 8px 0; }
+
+  /* ---------- Bot cards ---------- */
+  .bot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .bot-card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px;
+  }
+  .bot-id {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 500;
+    color: var(--gold); word-break: break-word;
+  }
+  .bot-stats { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .bot-stat-row {
+    display: flex; justify-content: space-between; font-size: 12.5px;
+  }
+  .bot-stat-row .label { color: var(--text-dim); }
+  .bot-stat-row .val { font-family: 'IBM Plex Mono', monospace; }
+
+  /* ---------- Trades table ---------- */
+  .trades-panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; }
+  thead th {
+    text-align: left; padding: 12px 16px; color: var(--text-dim);
+    font-weight: 500; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    border-bottom: 1px solid var(--line);
+  }
+  tbody td { padding: 11px 16px; border-bottom: 1px solid var(--line); }
+  tbody tr:last-child td { border-bottom: none; }
+  .dir-buy { color: var(--green); }
+  .dir-sell { color: var(--red); }
+
+  .empty-state {
+    padding: 40px 20px; text-align: center; color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+  }
+
+  .key-gate {
+    max-width: 420px; margin: 100px auto; text-align: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 40px 30px;
+  }
+  .key-gate h2 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; margin: 0 0 8px; }
+  .key-gate p { color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+
+  footer {
+    text-align: center; margin-top: 40px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-dim);
+  }
+
+  @media (max-width: 720px) {
+    .vitals { grid-template-columns: 1fr; }
+    .gauge-wrap { padding-bottom: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="gate" class="key-gate" style="display:none;">
+  <h2>Access key required</h2>
+  <p>This view needs an access key in the link. Ask whoever shared this dashboard for the full URL, including <code>?key=...</code>.</p>
+</div>
+
+<div id="app" class="wrap" style="display:none;">
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-mark">BABSBOOKS FLEET</span>
+      <span class="brand-sub">Live Risk Control</span>
+    </div>
+    <div class="live-pill">
+      <span id="live-dot" class="dot"></span>
+      <span id="live-text">connecting…</span>
+    </div>
+  </div>
+
+  <div id="conn-banner" class="conn-banner">
+    Dashboard can't reach the Master Risk Manager right now. Figures below are stale. Retrying automatically.
+  </div>
+
+  <div id="halt-banner" class="halt-banner">
+    <b>FLEET HALTED</b> — <span id="halt-reason"></span>
+  </div>
+
+  <div class="vitals">
+    <div class="gauge-wrap">
+      <div class="gauge-label">Open Risk / Cap</div>
+      <svg id="gauge" width="180" height="180" viewBox="0 0 180 180">
+        <circle cx="90" cy="90" r="72" fill="none" stroke="#1A2438" stroke-width="14"/>
+        <circle id="gauge-arc" cx="90" cy="90" r="72" fill="none" stroke="#D4A657" stroke-width="14"
+                stroke-linecap="round" stroke-dasharray="452" stroke-dashoffset="452"
+                transform="rotate(-90 90 90)" style="transition: stroke-dashoffset 0.6s ease, stroke 0.3s;"/>
+        <text id="gauge-pct" x="90" y="84" text-anchor="middle" fill="#E7ECF5"
+              font-family="IBM Plex Mono, monospace" font-size="26" font-weight="500">0.0%</text>
+        <text x="90" y="106" text-anchor="middle" fill="#8E9BB8"
+              font-family="IBM Plex Mono, monospace" font-size="11">of 5.0% cap</text>
+      </svg>
+    </div>
+
+    <div class="vital-block">
+      <div class="vital-eyebrow">Equity</div>
+      <div class="vital-value" id="equity">—</div>
+      <div class="vital-sub">peak <span id="peak-equity">—</span></div>
+    </div>
+
+    <div class="vital-block">
+      <div class="vital-eyebrow">Today's Realized P&amp;L</div>
+      <div class="vital-value small" id="daily-pnl">—</div>
+      <div class="vital-sub"><span id="consec-losses">0</span> consecutive losses</div>
+    </div>
+  </div>
+
+  <div class="section-title">Currency Exposure</div>
+  <div id="exposure-row" class="exposure-row"></div>
+
+  <div class="section-title">Fleet Activity Today</div>
+  <div id="bot-grid" class="bot-grid"></div>
+
+  <div class="section-title">Closed Trades Today</div>
+  <div class="trades-panel">
+    <table>
+      <thead>
+        <tr><th>Time</th><th>Bot</th><th>Symbol</th><th>Dir</th><th>Risk</th><th>Realized</th></tr>
+      </thead>
+      <tbody id="trades-body"></tbody>
+    </table>
+    <div id="trades-empty" class="empty-state" style="display:none;">No trades closed yet today.</div>
+  </div>
+
+  <footer>Read-only view · Updated every 4s · Cannot place, close, or modify any trade</footer>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const key = params.get('key');
+
+if (!key) {
+  document.getElementById('gate').style.display = 'block';
+} else {
+  document.getElementById('app').style.display = 'block';
+  poll();
+  setInterval(poll, 4000);
+}
+
+function fmtMoney(n) {
+  if (n === null || n === undefined) return '—';
+  return '$' + Number(n).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+function fmtPct(n, digits=2) {
+  if (n === null || n === undefined) return '—';
+  return Number(n).toFixed(digits) + '%';
+}
+function fmtTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  } catch { return iso; }
+}
+
+async function poll() {
+  const dot = document.getElementById('live-dot');
+  const liveText = document.getElementById('live-text');
+  const connBanner = document.getElementById('conn-banner');
+
+  try {
+    const res = await fetch(`/api/summary?key=${encodeURIComponent(key)}`);
+    if (res.status === 401) {
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('gate').style.display = 'block';
+      document.getElementById('gate').innerHTML = '<h2>Access denied</h2><p>The key in this link is not valid.</p>';
+      return;
+    }
+    const data = await res.json();
+    render(data);
+
+    if (data.connected) {
+      dot.className = 'dot on';
+      liveText.textContent = 'live';
+      connBanner.classList.remove('show');
+    } else {
+      dot.className = 'dot off';
+      liveText.textContent = 'MRM unreachable';
+      connBanner.classList.add('show');
+    }
+  } catch (e) {
+    dot.className = 'dot off';
+    liveText.textContent = 'dashboard offline';
+    connBanner.classList.add('show');
+  }
+}
+
+function render(data) {
+  // Halt banner
+  const haltBanner = document.getElementById('halt-banner');
+  if (data.halted) {
+    haltBanner.classList.add('show');
+    document.getElementById('halt-reason').textContent = data.halt_reason || 'reason not provided';
+  } else {
+    haltBanner.classList.remove('show');
+  }
+
+  // Gauge
+  const cap = data.account_risk_cap_pct || 5.0;
+  const used = data.total_open_risk_pct || 0;
+  const frac = Math.min(1, cap > 0 ? used / cap : 0);
+  const circumference = 452;
+  const offset = circumference * (1 - frac);
+  const arc = document.getElementById('gauge-arc');
+  arc.setAttribute('stroke-dashoffset', offset);
+  arc.setAttribute('stroke', frac > 0.85 ? '#E5484D' : frac > 0.6 ? '#E8A33D' : '#D4A657');
+  document.getElementById('gauge-pct').textContent = fmtPct(used, 1);
+
+  // Vitals
+  document.getElementById('equity').textContent = fmtMoney(data.equity);
+  document.getElementById('peak-equity').textContent = fmtMoney(data.peak_equity);
+  const pnlEl = document.getElementById('daily-pnl');
+  const pnl = data.daily_realized_pnl_pct || 0;
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmtPct(pnl);
+  pnlEl.className = 'vital-value small ' + (pnl > 0 ? 'up' : pnl < 0 ? 'down' : '');
+  document.getElementById('consec-losses').textContent = data.consecutive_losses ?? 0;
+
+  // Currency exposure
+  const expRow = document.getElementById('exposure-row');
+  const exposure = data.currency_exposure_pct || {};
+  const keys = Object.keys(exposure);
+  if (keys.length === 0) {
+    expRow.innerHTML = '<div class="exposure-empty">No open exposure right now.</div>';
+  } else {
+    expRow.innerHTML = keys.map(cur => {
+      const val = exposure[cur];
+      const pctOfCap = Math.min(100, (val / 1.5) * 100); // relative to the currency exposure guard's typical cap
+      return `
+        <div class="exposure-chip">
+          <div class="cur">${cur}</div>
+          <div class="exposure-bar"><div class="exposure-fill" style="width:${pctOfCap}%"></div></div>
+          <div class="exposure-pct">${fmtPct(val)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // Bot grid
+  const botGrid = document.getElementById('bot-grid');
+  const bots = data.bots || [];
+  if (bots.length === 0) {
+    botGrid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">No bot activity recorded yet today.</div>';
+  } else {
+    botGrid.innerHTML = bots.map(b => `
+      <div class="bot-card">
+        <div class="bot-id">${b.bot_id}</div>
+        <div class="bot-stats">
+          <div class="bot-stat-row"><span class="label">Open now</span><span class="val">${b.open_count}</span></div>
+          <div class="bot-stat-row"><span class="label">Open risk</span><span class="val">${fmtPct(b.open_risk_pct)}</span></div>
+          <div class="bot-stat-row"><span class="label">Trades today</span><span class="val">${b.trades_today}</span></div>
+          <div class="bot-stat-row"><span class="label">W / L today</span><span class="val">${b.wins_today} / ${b.losses_today}</span></div>
+          <div class="bot-stat-row"><span class="label">Realized today</span><span class="val ${b.realized_pnl_pct_today > 0 ? 'up' : b.realized_pnl_pct_today < 0 ? 'down' : ''}">${(b.realized_pnl_pct_today >= 0 ? '+' : '')}${fmtPct(b.realized_pnl_pct_today)}</span></div>
+        </div>
+      </div>`).join('');
+  }
+
+  // Trades table
+  const tbody = document.getElementById('trades-body');
+  const trades = data.closed_today || [];
+  const emptyEl = document.getElementById('trades-empty');
+  if (trades.length === 0) {
+    tbody.innerHTML = '';
+    emptyEl.style.display = 'block';
+  } else {
+    emptyEl.style.display = 'none';
+    tbody.innerHTML = trades.map(t => `
+      <tr>
+        <td>${fmtTime(t.closed_at)}</td>
+        <td>${t.bot_id}</td>
+        <td>${t.symbol}</td>
+        <td class="${t.direction === 'BUY' ? 'dir-buy' : 'dir-sell'}">${t.direction}</td>
+        <td>${fmtPct(t.risk_pct)}</td>
+        <td class="${(t.realized_pnl||0) > 0 ? 'up' : (t.realized_pnl||0) < 0 ? 'down' : ''}">${(t.realized_pnl >= 0 ? '+' : '')}${fmtPct(t.realized_pnl)}</td>
+      </tr>`).join('');
+  }
+}
+</script>
+
+</body>
+</html>

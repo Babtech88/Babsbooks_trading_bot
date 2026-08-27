@@ -1,0 +1,20 @@
+{
+    "total_trades": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "win_rate": 0,
+    "profit_factor": 0,
+    "total_pnl": 0,
+    "average_win": 0,
+    "average_loss": 0,
+    "largest_win": 0,
+    "largest_loss": 0,
+    "max_drawdown": 0,
+    "sharpe_ratio": 0,
+    "expectancy": 0,
+    "total_return_r": 0,
+    "last_updated": null,
+    "performance_by_symbol": {},
+    "performance_by_state": {},
+    "performance_by_session": {}
+}
