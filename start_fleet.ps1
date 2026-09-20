@@ -1,103 +1,316 @@
-# start_fleet.ps1
-# -----------------------------------------------------------------------------
-# Starts the Master Risk Manager and every bot instance as background
-# processes, each writing its own log file. Run this from the folder
-# containing master_risk_manager.py, risk_client.py, bot_risk_config.py,
-# and all the wired bot scripts.
+# ============================================================================
+# CUREX / BABSBOOKS 7-BOT FLEET LAUNCHER
+# ============================================================================
+# Starts all 7 trading-bot instances with unique BOT_ID values so the MRM
+# can distinguish them.
 #
-# Usage (PowerShell, run as the same user MT5 is logged in under):
-#     .\start_fleet.ps1
+# Usage:
+#   .\start_fleet.ps1
 #
-# To change which bots run / their symbol mode, edit the $Bots array below.
-# -----------------------------------------------------------------------------
+# Start only selected slots:
+#   .\start_fleet.ps1 -Slots 1,5
+#
+# Start slots 1, 3 and 6:
+#   .\start_fleet.ps1 -Slots 1,3,6
+#
+# Stop all bots:
+#   .\start_fleet.ps1 -Stop
+# ============================================================================
+
+param(
+    [int[]]$Slots = @(1,2,3,4,5,6,7),
+
+    [switch]$Stop
+)
 
 $ErrorActionPreference = "Stop"
-$RootDir = $PSScriptRoot
-Set-Location $RootDir
 
-$LogDir = Join-Path $RootDir "logs"
-if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
+# ----------------------------------------------------------------------------
+# Configuration
+# ----------------------------------------------------------------------------
 
-Write-Host "=============================================================="
-Write-Host " BabsBooks Fleet Launcher"
-Write-Host "=============================================================="
+$BotDirectory = $PSScriptRoot
+$PythonExe = Join-Path $BotDirectory "venv\Scripts\python.exe"
 
-# ── 1. Start the Master Risk Manager ─────────────────────────────────────────
-Write-Host "`n[1/2] Starting Master Risk Manager on 127.0.0.1:8800 ..."
+$MRM_URL = "http://127.0.0.1:8800"
 
-$mrmLog = Join-Path $LogDir "mrm.log"
-$mrmProc = Start-Process -FilePath "python" `
-    -ArgumentList "-m", "uvicorn", "master_risk_manager:app", "--host", "127.0.0.1", "--port", "8800" `
-    -RedirectStandardOutput $mrmLog `
-    -RedirectStandardError (Join-Path $LogDir "mrm_error.log") `
-    -WindowStyle Hidden `
-    -PassThru
+# IMPORTANT:
+# Put your real dashboard/MRM key in an environment variable instead of
+# hard-coding it here.
+#
+# Example:
+#   $env:DASHBOARD_ACCESS_KEY = "YOUR_NEW_KEY"
+#
+# Or load it from your own .env file before running this script.
 
-Start-Sleep -Seconds 3
+if (-not $env:DASHBOARD_ACCESS_KEY) {
+    Write-Host ""
+    Write-Host "WARNING: DASHBOARD_ACCESS_KEY is not set." -ForegroundColor Yellow
+    Write-Host "Set it before starting the fleet if your MRM requires it." -ForegroundColor Yellow
+    Write-Host ""
+}
 
-# Health check
-try {
-    $status = Invoke-RestMethod -Uri "http://127.0.0.1:8800/v1/status" -Method Get -TimeoutSec 5
-    Write-Host "      MRM is up. PID=$($mrmProc.Id)"
-} catch {
-    Write-Host "      ERROR: MRM did not respond. Check $mrmLog and $LogDir\mrm_error.log"
+# ----------------------------------------------------------------------------
+# Seven bot definitions
+# ----------------------------------------------------------------------------
+
+$Bots = @{
+    1 = @{
+        Name       = "V46.1 Mechanical Mind Gold"
+        BotId      = "bot_1_v46gold"
+        Script     = "simple_trade_bot_v46_gold.py"
+        SymbolMode = ""
+    }
+
+    2 = @{
+        Name       = "V45 7-Gate Mechanical"
+        BotId      = "bot_2_v45"
+        Script     = "professional_trading_bot_v45.py"
+        SymbolMode = ""
+    }
+
+    3 = @{
+        Name       = "V36 Complete HQT DCA"
+        BotId      = "bot_3_v36hqt"
+        Script     = "babsbooks_trading_bot_v36.py"
+        SymbolMode = ""
+    }
+
+    4 = @{
+        Name       = "V36 Complete No HQT"
+        BotId      = "bot_4_v36nohqt"
+        Script     = "babsbooks_trading_bot_v36_no_hqt.py"
+        SymbolMode = ""
+    }
+
+    5 = @{
+        Name       = "V46 Confluence"
+        BotId      = "bot_5_v46conf"
+        Script     = "v46_confluence_bot.py"
+        SymbolMode = ""
+    }
+
+    6 = @{
+        Name       = "V36 ITAFX"
+        BotId      = "bot_6_v36itafx"
+        Script     = "babsbooks_trading_bot_v36_itafx.py"
+        SymbolMode = ""
+    }
+
+    7 = @{
+        Name       = "XAUUSD Only"
+        BotId      = "bot_7_xauusd"
+        Script     = "simple_trade_bot_v46_gold.py"
+        SymbolMode = "xauusd_only"
+    }
+}
+
+# ----------------------------------------------------------------------------
+# Stop existing fleet
+# ----------------------------------------------------------------------------
+
+if ($Stop) {
+
+    Write-Host ""
+    Write-Host "Stopping trading-bot fleet..." -ForegroundColor Yellow
+    Write-Host ""
+
+    $BotScriptNames = @(
+        "simple_trade_bot_v46_gold.py",
+        "professional_trading_bot_v45.py",
+        "babsbooks_trading_bot_v36.py",
+        "babsbooks_trading_bot_v36_no_hqt.py",
+        "v46_confluence_bot.py",
+        "babsbooks_trading_bot_v36_itafx.py"
+    )
+
+    $Processes = Get-CimInstance Win32_Process |
+        Where-Object {
+            $_.Name -match "python" -and
+            $_.CommandLine -and
+            (
+                $BotScriptNames | Where-Object {
+                    $_.CommandLine -like "*$_*"
+                }
+            )
+        }
+
+    foreach ($Process in $Processes) {
+        Write-Host "Stopping PID $($Process.ProcessId)" -ForegroundColor Red
+        Stop-Process -Id $Process.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+
+    Write-Host ""
+    Write-Host "Fleet stopped." -ForegroundColor Green
+    exit
+}
+
+# ----------------------------------------------------------------------------
+# Check Python
+# ----------------------------------------------------------------------------
+
+if (-not (Test-Path $PythonExe)) {
+
+    Write-Host ""
+    Write-Host "ERROR: Python virtual environment was not found." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Expected:"
+    Write-Host $PythonExe
+    Write-Host ""
+    Write-Host "Make sure your venv exists in the trading_bot folder."
     exit 1
 }
 
-# ── 2. Start each bot instance ───────────────────────────────────────────────
-# Format: BotId, ScriptFile, SymbolMode ("" = default/free trading, "xauusd_only" = gold-only slot)
-$Bots = @(
-    @{ Id = "bot_1_v46gold";     Script = "simple_trade_bot_v46_gold.py";          SymbolMode = "" },
-    @{ Id = "bot_2_v45";         Script = "professional_trading_bot_v45.py";       SymbolMode = "" },
-    @{ Id = "bot_3_v36hqt";      Script = "babsbooks_trading_bot_v36.py";          SymbolMode = "" },
-    @{ Id = "bot_4_v36nohqt";    Script = "babsbooks_trading_bot_v36_no_hqt.py";   SymbolMode = "" },
-    @{ Id = "bot_5_v46conf";     Script = "v46_confluence_bot.py";                 SymbolMode = "" },
-    @{ Id = "bot_6_v36itafx";    Script = "babsbooks_trading_bot_v36_itafx.py";    SymbolMode = "" },
-    @{ Id = "bot_7_xauusd";      Script = "simple_trade_bot_v46_gold.py";          SymbolMode = "xauusd_only" }
-)
+# ----------------------------------------------------------------------------
+# Check MRM
+# ----------------------------------------------------------------------------
 
-Write-Host "`n[2/2] Starting $($Bots.Count) bot instance(s) ..."
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "              7-BOT TRADING FLEET LAUNCHER" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Bot directory : $BotDirectory"
+Write-Host "Python        : $PythonExe"
+Write-Host "MRM URL       : $MRM_URL"
+Write-Host ""
 
-$BotProcs = @()
+# ----------------------------------------------------------------------------
+# Start selected bots
+# ----------------------------------------------------------------------------
 
-foreach ($bot in $Bots) {
-    $scriptPath = Join-Path $RootDir $bot.Script
-    if (-not (Test-Path $scriptPath)) {
-        Write-Host "      SKIP  $($bot.Id) -- script not found: $($bot.Script)"
+foreach ($Slot in $Slots) {
+
+    if (-not $Bots.ContainsKey($Slot)) {
+        Write-Host "ERROR: Invalid slot: $Slot" -ForegroundColor Red
         continue
     }
 
-    $env:BOT_ID     = $bot.Id
-    $env:MRM_URL    = "http://127.0.0.1:8800"
-    if ($bot.SymbolMode -ne "") {
-        $env:SYMBOL_MODE = $bot.SymbolMode
-    } else {
-        Remove-Item Env:\SYMBOL_MODE -ErrorAction SilentlyContinue
+    $Bot = $Bots[$Slot]
+
+    $ScriptPath = Join-Path $BotDirectory $Bot.Script
+
+    Write-Host "------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "Slot       : $Slot" -ForegroundColor Cyan
+    Write-Host "Name       : $($Bot.Name)" -ForegroundColor White
+    Write-Host "BOT_ID     : $($Bot.BotId)" -ForegroundColor Yellow
+    Write-Host "Script     : $($Bot.Script)" -ForegroundColor White
+    Write-Host "MRM        : $MRM_URL" -ForegroundColor White
+
+    if ($Bot.SymbolMode) {
+        Write-Host "Symbol Mode: $($Bot.SymbolMode)" -ForegroundColor Magenta
     }
 
-    $botLog = Join-Path $LogDir "$($bot.Id).log"
-    $botErr = Join-Path $LogDir "$($bot.Id)_error.log"
+    if (-not (Test-Path $ScriptPath)) {
+        Write-Host "ERROR: Script not found!" -ForegroundColor Red
+        Write-Host "       $ScriptPath" -ForegroundColor Red
+        continue
+    }
 
-    $proc = Start-Process -FilePath "python" `
-        -ArgumentList $bot.Script `
-        -RedirectStandardOutput $botLog `
-        -RedirectStandardError $botErr `
-        -WindowStyle Hidden `
-        -PassThru
+    # ------------------------------------------------------------
+    # Build environment variables for this specific bot
+    # ------------------------------------------------------------
 
-    $tag = if ($bot.SymbolMode -ne "") { " [$($bot.SymbolMode)]" } else { "" }
-    Write-Host "      STARTED  $($bot.Id)$tag  PID=$($proc.Id)  -> $botLog"
-    $BotProcs += $proc
+    $BotEnvironment = @(
+        "BOT_ID=$($Bot.BotId)"
+        "MRM_URL=$MRM_URL"
+    )
 
-    Start-Sleep -Seconds 2   # stagger starts so they don't all hit MT5/rates at once
+    if ($Bot.SymbolMode) {
+        $BotEnvironment += "SYMBOL_MODE=$($Bot.SymbolMode)"
+    }
+    else {
+        $BotEnvironment += "SYMBOL_MODE="
+    }
+
+    if ($env:DASHBOARD_ACCESS_KEY) {
+        $BotEnvironment += "DASHBOARD_ACCESS_KEY=$env:DASHBOARD_ACCESS_KEY"
+    }
+
+    # ------------------------------------------------------------
+    # Create command that sets environment variables and starts bot
+    # ------------------------------------------------------------
+
+    $EnvironmentCommands = ""
+
+    foreach ($EnvironmentVariable in $BotEnvironment) {
+
+        $Parts = $EnvironmentVariable -split "=", 2
+
+        $VariableName = $Parts[0]
+        $VariableValue = ""
+
+        if ($Parts.Count -gt 1) {
+            $VariableValue = $Parts[1]
+        }
+
+        # Escape PowerShell single quotes
+        $VariableValue = $VariableValue.Replace("'", "''")
+
+        $EnvironmentCommands += "`$env:$VariableName = '$VariableValue'; "
+    }
+
+    $Command = @"
+Set-Location -LiteralPath '$BotDirectory';
+$EnvironmentCommands
+Write-Host '';
+Write-Host '==================================================' -ForegroundColor Cyan;
+Write-Host ' BOT SLOT $Slot STARTED' -ForegroundColor Green;
+Write-Host ' BOT_ID: $($Bot.BotId)' -ForegroundColor Yellow;
+Write-Host ' SCRIPT: $($Bot.Script)' -ForegroundColor White;
+Write-Host ' MRM: $MRM_URL' -ForegroundColor White;
+Write-Host '==================================================' -ForegroundColor Cyan;
+Write-Host '';
+& '$PythonExe' '$ScriptPath';
+Write-Host '';
+Write-Host 'BOT PROCESS EXITED' -ForegroundColor Red;
+Write-Host 'BOT_ID: $($Bot.BotId)' -ForegroundColor Yellow;
+Write-Host '';
+Read-Host 'Press ENTER to close this bot window'
+"@
+
+    # ------------------------------------------------------------
+    # Start a separate PowerShell window
+    # ------------------------------------------------------------
+
+    Start-Process powershell.exe `
+        -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $Command
+
+    Write-Host "Started." -ForegroundColor Green
+
+    # Small delay prevents all 7 processes from initializing at exactly
+    # the same instant.
+    Start-Sleep -Seconds 2
 }
 
-Write-Host "`n=============================================================="
-Write-Host " Fleet is running. MRM PID=$($mrmProc.Id)  |  $($BotProcs.Count) bot(s) started"
-Write-Host " Logs: $LogDir"
-Write-Host " To stop everything, run: .\stop_fleet.ps1"
-Write-Host "=============================================================="
+# ----------------------------------------------------------------------------
+# Finished
+# ----------------------------------------------------------------------------
 
-# Save PIDs so stop_fleet.ps1 can find them
-$allPids = @{ mrm = $mrmProc.Id; bots = $BotProcs.Id }
-$allPids | ConvertTo-Json | Out-File (Join-Path $RootDir "fleet_pids.json")
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Green
+Write-Host "                  FLEET LAUNCH COMPLETE" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Green
+Write-Host ""
+
+Write-Host "Running slots:" -ForegroundColor Cyan
+
+foreach ($Slot in $Slots) {
+
+    if ($Bots.ContainsKey($Slot)) {
+
+        $Bot = $Bots[$Slot]
+
+        Write-Host (
+            "  Slot {0} -> {1} -> {2}" -f `
+            $Slot,
+            $Bot.BotId,
+            $Bot.Script
+        )
+    }
+}
+
+Write-Host ""
+Write-Host "To stop the fleet:" -ForegroundColor Yellow
+Write-Host "  .\start_fleet.ps1 -Stop"
+Write-Host ""
